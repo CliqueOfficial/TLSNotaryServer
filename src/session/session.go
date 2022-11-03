@@ -14,7 +14,8 @@ import (
 	"notary/ghash"
 	"notary/meta"
 	"notary/ot"
-	"notary/paillier2pc"
+	// "notary/paillier2pc"
+	"notary/lattice2pc"
 	u "notary/utils"
 
 	"os"
@@ -45,7 +46,8 @@ func (sc *StreamCounter) Write(p []byte) (int, error) {
 type Session struct {
 	e     *evaluator.Evaluator
 	g     *garbler.Garbler
-	p2pc  *paillier2pc.Paillier2PC
+	// p2pc  *paillier2pc.Paillier2PC
+	l2pc  *lattice2pc.Lattice2PC
 	ghash *ghash.GHASH
 	// gctrBlockShare is notary's share of the AES-GCM's GCTR block
 	// for the client's request
@@ -118,7 +120,8 @@ func (s *Session) Init1(body []byte) []byte {
 	s.e = new(evaluator.Evaluator)
 	s.otS = new(ot.OTSender)
 	s.otR = new(ot.OTReceiver)
-	s.p2pc = new(paillier2pc.Paillier2PC)
+	// s.p2pc = new(paillier2pc.Paillier2PC)
+	s.l2pc = new(lattice2pc.Lattice2PC)
 	s.ghash = new(ghash.GHASH)
 	// the first 64 bytes are client pubkey for ECDH
 	o := 0
@@ -181,7 +184,8 @@ func (s *Session) Init1(body []byte) []byte {
 	s.hisCommitment = make([][]byte, len(s.g.Cs))
 	s.encodedOutput = make([][]byte, len(s.g.Cs))
 
-	s.p2pc.Init()
+	// s.p2pc.Init()
+	s.l2pc.Init()
 	return s.encryptToClient(u.Concat(A, seedCommit, allBs, senderSeedShare))
 }
 
@@ -255,26 +259,30 @@ func (s *Session) Step1(encrypted []byte) []byte {
 	s.sequenceCheck(5)
 	body := s.decryptFromClient(encrypted)
 	var resp []byte
-	s.serverPubkey, resp = s.p2pc.Step1(body)
+	// s.serverPubkey, resp = s.p2pc.Step1(body)
+	s.serverPubkey, resp = s.l2pc.Step1(body)
 	return s.encryptToClient(resp)
 }
 
 func (s *Session) Step2(encrypted []byte) []byte {
 	s.sequenceCheck(6)
 	body := s.decryptFromClient(encrypted)
-	return s.encryptToClient(s.p2pc.Step2(body))
+	// return s.encryptToClient(s.p2pc.Step2(body))
+	return s.encryptToClient(s.l2pc.Step2(body))
 }
 
 func (s *Session) Step3(encrypted []byte) []byte {
 	s.sequenceCheck(7)
 	body := s.decryptFromClient(encrypted)
-	return s.encryptToClient(s.p2pc.Step3(body))
+	// return s.encryptToClient(s.p2pc.Step3(body))
+	return s.encryptToClient(s.l2pc.Step3(body))
 }
 
 func (s *Session) Step4(encrypted []byte) []byte {
 	s.sequenceCheck(8)
 	body := s.decryptFromClient(encrypted)
-	s.notaryPMSShare = s.p2pc.Step4(body)
+	// s.notaryPMSShare = s.p2pc.Step4(body)
+	s.notaryPMSShare = s.l2pc.Step4(body)
 	return nil
 }
 
